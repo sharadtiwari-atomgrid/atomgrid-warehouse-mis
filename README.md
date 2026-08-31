@@ -1,31 +1,40 @@
-# ATOM GRID Warehouse MIS — Final No Login Version
+# ATOM GRID Warehouse MIS V6
 
-This version has **no login and no authentication**.
+V6 focuses on stock discrepancy and adds movement-aware reconciliation plus daily snapshots.
 
-Anyone who has the Render URL can open the dashboard and upload the latest warehouse MIS Excel.
+## Logic
 
-## Render settings
+For each Material + Batch:
 
-Build Command:
-```text
-pip install -r requirements.txt
-```
+**Expected Stock = Opening Stock + Today's Inward - Today's Outward**
 
-Start Command:
-```text
-streamlit run app.py --server.port $PORT --server.address 0.0.0.0
-```
+The expected stock is compared with the warehouse/system stock.
 
-No Google OAuth credentials, Streamlit secrets, or Render environment variables are required.
+A separate physical check compares:
 
-## Daily operation
+**Physical Stock - System Stock**
 
-1. Open the Render URL.
-2. Upload the latest warehouse MIS Excel.
-3. Review Overview, Stock, Inward, Outward, Ageing and Exceptions.
-4. Use New Materials to identify products not in the approved master.
-5. Download filtered stock or exception CSVs when required.
+## Daily snapshots
 
-## Important
+One CSV snapshot is stored per EOD date and is not overwritten. This is intended for the first 7–14 days of manual validation against the warehouse's EOD report.
 
-Delete/ignore any old Google OAuth secret file or authentication configuration from Render. This application no longer uses it.
+**Important:** snapshots are stored on the service filesystem. Render can reset ephemeral storage during some redeploy/restart events. Do not treat this as permanent history yet. After validation, move snapshots to a database/persistent storage.
+
+## Render
+
+Build:
+`pip install -r requirements.txt`
+
+Start:
+`streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
+
+No authentication.
+
+## Daily process
+
+1. Upload warehouse Excel.
+2. Check Discrepancy Control.
+3. Check Movement Reconciliation when available.
+4. Open Daily Snapshot.
+5. Compare with manual EOD report.
+6. Keep both processes running for 7–14 days before making the dashboard the primary control.
