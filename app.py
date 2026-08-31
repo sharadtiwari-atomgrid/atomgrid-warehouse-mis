@@ -6,8 +6,8 @@ from datetime import date
 
 st.set_page_config(page_title='ATOM GRID — Warehouse MIS', page_icon='📦', layout='wide', initial_sidebar_state='expanded')
 
-LOW_STOCK_DEFAULT=250
-AGEING_DEFAULT=60
+LOW_STOCK_DEFAULT=250.0
+AGEING_DEFAULT=60.0
 TOL_DEFAULT=0.01
 SNAP_DIR='snapshots'
 os.makedirs(SNAP_DIR, exist_ok=True)
@@ -90,9 +90,9 @@ with st.sidebar:
     page=st.radio('Navigation',['⌂  Dashboard','⚠  Discrepancies','✓  Matched Materials','↥  Inward','↧  Outward','▣  Inventory','◷  Ageing & POC','▣  Daily Snapshot','▤  EOD Report','▥  Reports','⚙  Settings'],label_visibility='collapsed')
     st.markdown('---')
     uploaded=st.file_uploader('Upload MIS File',type=['xlsx','xls'])
-    tolerance=st.number_input('Variance tolerance (KG)',0.0,100000.0,TOL_DEFAULT,0.01)
-    low_stock=st.number_input('Low stock alert below (KG)',0.0,1000000.0,LOW_STOCK_DEFAULT,50.0)
-    ageing_limit=st.number_input('Ageing alert above (days)',0.0,5000.0,AGEING_DEFAULT,5.0)
+    tolerance=st.number_input('Variance tolerance (KG)', min_value=0.0, max_value=100000.0, value=float(TOL_DEFAULT), step=0.01)
+    low_stock=st.number_input('Low stock alert below (KG)', min_value=0.0, max_value=1000000.0, value=float(LOW_STOCK_DEFAULT), step=50.0)
+    ageing_limit=st.number_input('Ageing alert above (days)', min_value=0.0, max_value=5000.0, value=float(AGEING_DEFAULT), step=5.0)
 
 if not uploaded:
     st.markdown('<div class="brand"><div class="logo"><span class="a">ATOM</span><span class="g">GRID</span><sup>®</sup></div><div><div class="title">Warehouse MIS – Stock Reconciliation (V8)</div><div class="subtitle">Move-in / Move-out Reconciliation Dashboard</div></div></div>',unsafe_allow_html=True)
