@@ -121,6 +121,70 @@ s['Status']=np.select([s['_Expected'].notna() & s['_Variance'].abs()>tolerance,s
 snap_cols=key+['_Expected','_WarehouseStock','_Variance','_VariancePct','_PhysicalStock','_PhysicalVariance','_Age','_Opening','_Inward','_Outward','Status'];saved=save_snapshot(s[snap_cols],report_date,uploaded.name)
 dis=s[s['_Expected'].notna()&s['_Variance'].abs()>tolerance].copy();matched=s[s['_Expected'].notna()&s['_Variance'].abs()<=tolerance].copy();expected_total=s['_Expected'].sum(min_count=1);actual_total=s['_WarehouseStock'].sum();net_variance=actual_total-expected_total if pd.notna(expected_total) else np.nan;abs_variance=s['_Variance'].abs().sum()
 
+# Page routing for sidebar navigation
+
+def show_table(df, cols=None, height=520):
+    if cols:
+        cols=[c for c in cols if c in df.columns]
+        df=df[cols]
+    st.dataframe(df, use_container_width=True, hide_index=True, height=height)
+
+def page_header(title, subtitle):
+    st.markdown(f'<div class="panel" style="padding:16px 18px;margin-bottom:14px"><div class="title">{title}</div><div class="subtitle">{subtitle}</div></div>', unsafe_allow_html=True)
+
+def render_detail_page(label):
+    page_header(label, f'Warehouse MIS • {report_date.strftime("%d/%m/%Y")}')
+    if label.startswith('⚠'):
+        st.markdown(f'### 🔴 Discrepant Materials — {len(dis)}')
+        if dis.empty: st.success('No stock discrepancies within the selected tolerance.')
+        else:
+            show_table(dis.rename(columns={'_Material':'Product Name','_Opening':'Opening Stock','_Inward':'Inward','_Outward':'Outward','_Expected':'Expected Stock','_WarehouseStock':'Warehouse Actual Stock','_Variance':'Variance','_VariancePct':'Variance %','Status':'Discrepancy Type'})[['Product Name','Opening Stock','Inward','Outward','Expected Stock','Warehouse Actual Stock','Variance','Variance %','Discrepancy Type']].sort_values('Variance',key=lambda x:x.abs(),ascending=False))
+    elif label.startswith('✓'):
+        st.markdown(f'### 🟢 Matched Materials — {len(matched)}')
+        show_table(matched.rename(columns={'_Material':'Product Name','_Opening':'Opening Stock','_Inward':'Inward','_Outward':'Outward','_Expected':'Expected Stock','_WarehouseStock':'Warehouse Actual Stock','_Variance':'Variance','_VariancePct':'Variance %'})[['Product Name','Opening Stock','Inward','Outward','Expected Stock','Warehouse Actual Stock','Variance','Variance %']])
+    elif label.startswith('↥'):
+        st.markdown(f'### Inward Movements — {len(iv)} records')
+        show_table(iv.rename(columns={'_Material':'Product Name','_Code':'Material Code','_Batch':'Batch','_Qty':'Quantity','_Date':'Date'}),height=600)
+    elif label.startswith('↧'):
+        st.markdown(f'### Outward Movements — {len(ov)} records')
+        show_table(ov.rename(columns={'_Material':'Product Name','_Code':'Material Code','_Batch':'Batch','_Qty':'Quantity','_Date':'Date'}),height=600)
+    elif label.startswith('▣  Inventory'):
+        inv=s.rename(columns={'_Material':'Product Name','_Code':'Material Code','_Batch':'Batch','_Opening':'Opening Stock','_Inward':'Inward Today','_Outward':'Outward Today','_Expected':'Expected Stock','_WarehouseStock':'Warehouse Actual Stock','_Variance':'Variance','_Age':'Ageing Days','Status':'Status'})
+        show_table(inv[['Product Name','Material Code','Batch','Opening Stock','Inward Today','Outward Today','Expected Stock','Warehouse Actual Stock','Variance','Ageing Days','Status']].sort_values('Variance',key=lambda x:x.abs(),ascending=False),height=620)
+    elif label.startswith('◷'):
+        age=s[s['_Age']>ageing_limit].copy().sort_values('_Age',ascending=False)
+        st.metric('Materials above ageing limit',len(age))
+        show_table(age.rename(columns={'_Material':'Product Name','_WarehouseStock':'Warehouse Stock','_Age':'Ageing Days','_Batch':'Batch'})[['Product Name','Batch','Warehouse Stock','Ageing Days']],height=600)
+    elif label.startswith('▣  Daily'):
+        dates=list_snapshots()
+        st.metric('Saved snapshots',len(dates))
+        if dates:
+            selected=st.selectbox('Snapshot date',dates,index=len(dates)-1)
+            sh=read_snapshot(selected); show_table(sh,height=550)
+            st.download_button('Download Snapshot CSV',sh.to_csv(index=False).encode(),f'ATOM_GRID_snapshot_{selected}.csv','text/csv')
+        else: st.info('No snapshots have been saved yet. Upload a daily MIS file to create the first snapshot.')
+    elif label.startswith('▤'):
+        st.markdown('### EOD Report')
+        report=s.rename(columns={'_Material':'Product Name','_Opening':'Opening Stock','_Inward':'Inward','_Outward':'Outward','_Expected':'Expected Stock','_WarehouseStock':'Warehouse Actual Stock','_Variance':'Variance','_VariancePct':'Variance %','_Age':'Ageing Days','Status':'Status'})
+        show_table(report[['Product Name','Opening Stock','Inward','Outward','Expected Stock','Warehouse Actual Stock','Variance','Variance %','Ageing Days','Status']].sort_values('Variance',key=lambda x:x.abs(),ascending=False),height=620)
+        st.download_button('Download EOD Report CSV',report.to_csv(index=False).encode(),f'ATOM_GRID_EOD_{report_date}.csv','text/csv')
+    elif label.startswith('▥'):
+        st.markdown('### Reports & Controls')
+        rc1,rc2,rc3=st.columns(3)
+        rc1.metric('Discrepancy materials',len(dis)); rc2.metric('Low stock materials',int(((s['_WarehouseStock']>0)&(s['_WarehouseStock']<low_stock)).sum())); rc3.metric('Ageing alerts',int((s['_Age']>ageing_limit).sum()))
+        st.download_button('Export Full Reconciliation',s.to_csv(index=False).encode(),f'ATOM_GRID_Reconciliation_{report_date}.csv','text/csv')
+        st.caption('Use this page for management-level export and control checks.')
+    elif label.startswith('⚙'):
+        st.markdown('### Settings')
+        st.info('Change the controls in the left sidebar. They apply immediately to the uploaded MIS.')
+        c1,c2,c3=st.columns(3); c1.metric('Variance tolerance',f'{tolerance:g} KG'); c2.metric('Low stock threshold',f'{low_stock:g} KG'); c3.metric('Ageing threshold',f'{ageing_limit:g} days')
+
+if page != '⌂  Dashboard':
+    # Keep the reference-style dashboard intact, while making every sidebar item functional.
+    render_detail_page(page)
+    st.caption('ATOM GRID Warehouse MIS • V8 • Stock discrepancy is the primary control.')
+    st.stop()
+
 # Header
 st.markdown(f'''<div class="brand"><div class="logo"><span class="a">ATOM</span><span class="g">GRID</span><sup>®</sup></div><div><div class="title">Warehouse MIS – Stock Reconciliation (V8)</div><div class="subtitle">Move-in / Move-out Reconciliation Dashboard</div></div><div style="margin-left:auto;font-size:11px;color:#344054">Select Date<br><b>{report_date.strftime('%d/%m/%Y')}</b></div><div style="margin-left:18px"><span style="display:inline-block;background:#072653;color:white;padding:10px 14px;border-radius:6px;font-weight:700">⬆ Upload MIS File</span></div><div style="margin-left:14px;border:1px solid #b8e0c5;background:#f4fbf6;padding:9px 14px;border-radius:6px;font-size:11px;color:#08743d">Last Updated<br><b>{report_date.strftime('%d/%m/%Y')}</b></div></div>''',unsafe_allow_html=True)
 
