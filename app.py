@@ -5,33 +5,6 @@ import io, re, os
 
 st.set_page_config(page_title="ATOM GRID | Warehouse MIS", page_icon="📦", layout="wide")
 
-# ---------- GOOGLE OIDC ACCESS ----------
-# Google sign-in is required. Only @atomgrid.in accounts are permitted.
-# When Streamlit authentication is not configured, st.user has no attributes.
-# getattr() avoids an AttributeError and lets the app show a clear setup message.
-is_logged_in = getattr(st.user, "is_logged_in", False)
-
-if not is_logged_in:
-    st.title("📦 ATOM GRID")
-    st.subheader("Warehouse MIS")
-    st.write("Sign in with your ATOM GRID Google account to continue.")
-    if st.button("Sign in with Google", type="primary", use_container_width=True):
-        st.login()  # unnamed/default Google OIDC provider
-    st.stop()
-
-user_email = (getattr(st.user, "email", "") or "").strip().lower()
-if not user_email:
-    st.error("Google authentication is not configured correctly. Please check the Render Streamlit secrets.")
-    st.stop()
-
-if not user_email.endswith("@atomgrid.in"):
-    st.error("Access denied. This dashboard is restricted to @atomgrid.in accounts.")
-    st.write(f"Signed-in account: {user_email or 'Unknown'}")
-    if st.button("Sign out"):
-        st.logout()
-    st.stop()
-
-
 LOW_STOCK=250
 AGEING=90
 VAR_TOL=0.01
@@ -69,14 +42,8 @@ def pick(df,names):
 def num(df,col):
     return pd.to_numeric(df[col],errors="coerce").fillna(0) if col else pd.Series(0,index=df.index)
 
-# ---------- DASHBOARD ACCESS ----------
-# No authentication: anyone with the Render URL can open and use the dashboard.
-
 # ---------- SIDEBAR ----------
 st.sidebar.title("ATOM GRID MIS")
-st.sidebar.caption(f"Signed in: {user_email}")
-if st.sidebar.button("Sign out"):
-    st.logout()
 st.sidebar.caption("User: "+st.session_state.get("user",""))
 if st.sidebar.button("Logout"):
     st.session_state.logged_in=False
@@ -269,4 +236,4 @@ with tabs[9]:
     else:st.info("Cancelled Invoice Report not found.")
 
 st.divider()
-st.caption("ATOM GRID Warehouse MIS • Google sign-in • @atomgrid.in only • Upload-driven dashboard")
+st.caption("ATOM GRID Warehouse MIS • No-login access • Upload-driven dashboard")
