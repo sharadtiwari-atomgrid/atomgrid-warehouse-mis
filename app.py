@@ -7,15 +7,23 @@ st.set_page_config(page_title="ATOM GRID | Warehouse MIS", page_icon="📦", lay
 
 # ---------- GOOGLE OIDC ACCESS ----------
 # Google sign-in is required. Only @atomgrid.in accounts are permitted.
-if not st.user.is_logged_in:
+# When Streamlit authentication is not configured, st.user has no attributes.
+# getattr() avoids an AttributeError and lets the app show a clear setup message.
+is_logged_in = getattr(st.user, "is_logged_in", False)
+
+if not is_logged_in:
     st.title("📦 ATOM GRID")
     st.subheader("Warehouse MIS")
     st.write("Sign in with your ATOM GRID Google account to continue.")
     if st.button("Sign in with Google", type="primary", use_container_width=True):
-        st.login("google")
+        st.login()  # unnamed/default Google OIDC provider
     st.stop()
 
 user_email = (getattr(st.user, "email", "") or "").strip().lower()
+if not user_email:
+    st.error("Google authentication is not configured correctly. Please check the Render Streamlit secrets.")
+    st.stop()
+
 if not user_email.endswith("@atomgrid.in"):
     st.error("Access denied. This dashboard is restricted to @atomgrid.in accounts.")
     st.write(f"Signed-in account: {user_email or 'Unknown'}")
