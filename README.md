@@ -1,12 +1,9 @@
-# ATOM GRID Warehouse MIS — V8
+# ATOM GRID Warehouse MIS — V8 Fixed
 
-Streamlit dashboard styled to match the supplied Warehouse MIS Stock Reconciliation reference image.
+V8 dashboard with functional sidebar navigation, stock reconciliation, snapshots, and reference-style UI.
 
-## Deploy
-- `app.py`
-- `requirements.txt`
+## Fix in this build
+Some warehouse Excel exports contain duplicate column headers such as `Material Code`. Pandas/Streamlit can fail when rendering such a dataframe through PyArrow. This build removes duplicate headers defensively when loading each sheet and again before rendering tables.
 
-Render: create a Web Service from GitHub, runtime Python, build `pip install -r requirements.txt`, start `streamlit run app.py --server.address 0.0.0.0 --server.port $PORT`.
-
-## Reconciliation
-Expected Stock uses the explicit AG MIS / expected stock field when present. If no explicit expected stock exists, it falls back to Opening + Inward - Outward. Variance = Warehouse Actual - Expected.
+## Run
+`streamlit run app.py`

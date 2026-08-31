@@ -48,6 +48,10 @@ def load_excel(data):
         h=find_header(raw)
         df=pd.read_excel(io.BytesIO(data),sheet_name=sh,header=h)
         df.columns=[clean(c) for c in df.columns]
+        # Excel exports can contain duplicate headers (e.g. repeated Material Code).
+        # Streamlit/PyArrow requires unique dataframe column names. Keep the first
+        # occurrence of duplicate headers because these are usually repeated merged headers.
+        df=df.loc[:, ~pd.Index(df.columns).duplicated(keep='first')].copy()
         out[sh]=df.dropna(how='all').copy()
     return out
 
@@ -124,8 +128,10 @@ dis=s[s['_Expected'].notna()&s['_Variance'].abs()>tolerance].copy();matched=s[s[
 # Page routing for sidebar navigation
 
 def show_table(df, cols=None, height=520):
+    # Final defensive cleanup for Excel files that still carry duplicate headers.
+    df=df.loc[:, ~pd.Index(df.columns).duplicated(keep='first')].copy()
     if cols:
-        cols=[c for c in cols if c in df.columns]
+        cols=list(dict.fromkeys(c for c in cols if c in df.columns))
         df=df[cols]
     st.dataframe(df, use_container_width=True, hide_index=True, height=height)
 
