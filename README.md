@@ -1,9 +1,5 @@
-# ATOM GRID Warehouse MIS — V8 Fixed
+# ATOM GRID Warehouse MIS — V8 Final Fix
 
-V8 dashboard with functional sidebar navigation, stock reconciliation, snapshots, and reference-style UI.
+This version fixes the pandas merge error caused by Material Code being read as int64 in one dataset and string in another. Reconciliation keys are normalized to strings before snapshot merges.
 
-## Fix in this build
-Some warehouse Excel exports contain duplicate column headers such as `Material Code`. Pandas/Streamlit can fail when rendering such a dataframe through PyArrow. This build removes duplicate headers defensively when loading each sheet and again before rendering tables.
-
-## Run
-`streamlit run app.py`
+It also retains the Daily Snapshot minimum-stock filter and functional navigation.

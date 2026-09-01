@@ -116,7 +116,15 @@ def dayagg(x,name):
 din=dayagg(iv,'_Inward');dout=dayagg(ov,'_Outward');s=s.merge(din,on=key,how='left').merge(dout,on=key,how='left');s['_Inward']=s['_Inward'].fillna(0);s['_Outward']=s['_Outward'].fillna(0)
 previous=[x for x in list_snapshots() if x<str(report_date)];prev=read_snapshot(max(previous)) if previous else pd.DataFrame();s['_Opening']=np.nan
 if not prev.empty and all(c in prev.columns for c in key+['_WarehouseStock']):
-    pk=prev[key+['_WarehouseStock']].drop_duplicates(key).rename(columns={'_WarehouseStock':'_Opening'});s=s.merge(pk,on=key,how='left');s['_Opening']=s['_Opening'].fillna(0)
+    pk=prev[key+['_WarehouseStock']].copy()
+    # Snapshot CSVs can coerce blank/numeric material codes to numbers.
+    # Normalize all reconciliation keys to strings before merging.
+    for c in key:
+        s[c]=s[c].fillna('').astype(str).map(clean).str.upper()
+        pk[c]=pk[c].fillna('').astype(str).map(clean).str.upper()
+    pk['_WarehouseStock']=pd.to_numeric(pk['_WarehouseStock'],errors='coerce').fillna(0)
+    pk=pk.drop_duplicates(key).rename(columns={'_WarehouseStock':'_Opening'})
+    s=s.merge(pk,on=key,how='left');s['_Opening']=s['_Opening'].fillna(0)
 s['_Expected']=s['_ExpectedDirect']
 # Use the explicit AG MIS stock as the primary expected figure. Movement math is used when no direct expected value exists.
 if s['_Expected'].isna().all() and s['_Opening'].notna().any():s['_Expected']=s['_Opening']+s['_Inward']-s['_Outward']
