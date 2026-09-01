@@ -122,7 +122,7 @@ s['_Expected']=s['_ExpectedDirect']
 if s['_Expected'].isna().all() and s['_Opening'].notna().any():s['_Expected']=s['_Opening']+s['_Inward']-s['_Outward']
 s['_Variance']=s['_WarehouseStock']-s['_Expected'];s['_VariancePct']=np.where(s['_Expected'].abs()>tolerance,s['_Variance']/s['_Expected']*100,0)
 s['Status']=np.select([s['_Expected'].notna() & s['_Variance'].abs()>tolerance,s['_PhysicalVariance'].abs()>tolerance,(s['_WarehouseStock']>0)&(s['_WarehouseStock']<low_stock),s['_Age']>ageing_limit],['STOCK DISCREPANCY','PHYSICAL CHECK','LOW STOCK','AGEING'],default='MATCHED')
-snap_cols=key+['_Expected','_WarehouseStock','_Variance','_VariancePct','_PhysicalStock','_PhysicalVariance','_Age','_Opening','_Inward','_Outward','Status'];saved=save_snapshot(s[snap_cols],report_date,uploaded.name)
+snap_cols=key+['_Expected','_WarehouseStock','_Variance','_VariancePct','_PhysicalStock','_PhysicalVariance','_Age','_Opening','_Inward','_Outward','Status']; snapshot_source=s[s['_WarehouseStock'].fillna(0)>0].copy(); saved=save_snapshot(snapshot_source[snap_cols],report_date,uploaded.name)
 dis=s[s['_Expected'].notna()&s['_Variance'].abs()>tolerance].copy();matched=s[s['_Expected'].notna()&s['_Variance'].abs()<=tolerance].copy();expected_total=s['_Expected'].sum(min_count=1);actual_total=s['_WarehouseStock'].sum();net_variance=actual_total-expected_total if pd.notna(expected_total) else np.nan;abs_variance=s['_Variance'].abs().sum()
 
 # Page routing for sidebar navigation
@@ -164,9 +164,14 @@ def render_detail_page(label):
     elif label.startswith('▣  Daily'):
         dates=list_snapshots()
         st.metric('Saved snapshots',len(dates))
+        st.caption('Snapshot shows only materials with stock above the minimum quantity, so zero-stock rows do not inflate the report.')
+        snapshot_min_qty=st.number_input('Minimum stock to show (KG)',min_value=0.0,max_value=1000000.0,value=1.0,step=1.0,key='snapshot_min_qty')
         if dates:
             selected=st.selectbox('Snapshot date',dates,index=len(dates)-1)
-            sh=read_snapshot(selected); show_table(sh,height=550)
+            sh=read_snapshot(selected)
+            if '_WarehouseStock' in sh.columns:
+                sh=sh[pd.to_numeric(sh['_WarehouseStock'],errors='coerce').fillna(0) >= snapshot_min_qty].copy()
+            show_table(sh,height=550)
             st.download_button('Download Snapshot CSV',sh.to_csv(index=False).encode(),f'ATOM_GRID_snapshot_{selected}.csv','text/csv')
         else: st.info('No snapshots have been saved yet. Upload a daily MIS file to create the first snapshot.')
     elif label.startswith('▤'):
